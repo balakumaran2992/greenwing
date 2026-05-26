@@ -1,4 +1,4 @@
-# Sales, GST, Audit & HR Management System
+# GREENWING Management System
 
 A responsive Next.js business management application based on the supplied hand-drawn layouts. It keeps the fixed left navigation and main content pattern, with dashboard cards, tables, filters, add/edit/delete flows, GST calculations, HR pages, and export actions.
 
@@ -18,9 +18,15 @@ Demo login:
 
 ## Database
 
-The SQL schema is in `db/schema.sql`. The API routes are PostgreSQL-ready through `@vercel/postgres`; when no database environment variable is configured, the app uses seeded in-memory data so the interface still works during preview.
+The app is MySQL-ready for Railway. Set `MYSQL_URL` on the app service, or set `DATABASE_URL` to a MySQL connection string. During deploy, Railway runs `npm run db:setup` from `railway.json`, which creates the required `app_state` table and seeds the default admin user when the database is empty.
 
-For Vercel Postgres, set `POSTGRES_URL` or the Vercel Postgres environment variables, then run the schema in your database console.
+When no database environment variable is configured, the app uses seeded in-memory data so the interface still works during local preview.
+
+Railway deployment:
+
+- Add a MySQL service to the Railway project.
+- Add `MYSQL_URL=${{MySQL.MYSQL_URL}}` to the app service variables.
+- Deploy the app. The pre-deploy database setup runs automatically.
 
 ## Features
 

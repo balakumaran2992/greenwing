@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "db:setup": "node scripts/setup-db.mjs",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "next lint"
   },
   "dependencies": {
-    "@vercel/postgres": "^0.10.0",
     "lucide-react": "^0.468.0",
+    "mysql2": "^3.22.3",
     "next": "^15.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
