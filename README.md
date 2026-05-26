@@ -18,7 +18,7 @@ Demo login:
 
 ## Database
 
-The app is MySQL-ready for Railway. Set `MYSQL_URL` on the app service, or set `DATABASE_URL` to a MySQL connection string. During deploy, Railway runs `npm run db:setup` from `railway.json`, which creates the required `app_state` table and seeds the default admin user when the database is empty.
+The app is MySQL-ready for Railway. Set `MYSQL_URL` on the app service, or set `DATABASE_URL` to a MySQL connection string. During deploy, Railway runs `npm run db:setup` from `railway.json`, which creates the MySQL tables from `db/mysql-schema.sql` and seeds the default admin user when the database is empty.
 
 When no database environment variable is configured, the app uses seeded in-memory data so the interface still works during local preview.
 

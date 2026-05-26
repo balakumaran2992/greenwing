@@ -1,0 +1,237 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(80) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role VARCHAR(40) DEFAULT 'admin',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS daily_sales (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sale_date DATE NOT NULL,
+  opening_balance DECIMAL(12, 2) DEFAULT 0,
+  cash DECIMAL(12, 2) DEFAULT 0,
+  upi DECIMAL(12, 2) DEFAULT 0,
+  card DECIMAL(12, 2) DEFAULT 0,
+  expense DECIMAL(12, 2) DEFAULT 0,
+  output_gst DECIMAL(12, 2) DEFAULT 0,
+  submitted BOOLEAN DEFAULT false,
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sale_payments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  daily_sale_id INT,
+  payment_type VARCHAR(20) NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  FOREIGN KEY (daily_sale_id) REFERENCES daily_sales(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  description TEXT NOT NULL,
+  value DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  category VARCHAR(20) DEFAULT 'daily',
+  tax_type VARCHAR(20) DEFAULT 'na',
+  tax_rate DECIMAL(5, 2) DEFAULT 0,
+  gst DECIMAL(12, 2) DEFAULT 0,
+  expense_date DATE DEFAULT (CURRENT_DATE),
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  supplier_name VARCHAR(160) NOT NULL,
+  gst_number VARCHAR(40),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS supplier_invoices (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  supplier_id INT,
+  supplier_name VARCHAR(160),
+  supplier_bill_number VARCHAR(80) NOT NULL,
+  supplier_gst_number VARCHAR(40),
+  invoice_date DATE DEFAULT (CURRENT_DATE),
+  submitted BOOLEAN DEFAULT false,
+  total_basic DECIMAL(12, 2) DEFAULT 0,
+  total_tax DECIMAL(12, 2) DEFAULT 0,
+  grand_total DECIMAL(12, 2) DEFAULT 0,
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_invoice_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  supplier_invoice_id INT,
+  description TEXT NOT NULL,
+  basic DECIMAL(12, 2) DEFAULT 0,
+  tax_type VARCHAR(20) DEFAULT 'sgst_cgst',
+  tax_rate DECIMAL(5, 2) DEFAULT 0,
+  sgst DECIMAL(12, 2) DEFAULT 0,
+  cgst DECIMAL(12, 2) DEFAULT 0,
+  igst DECIMAL(12, 2) DEFAULT 0,
+  tax DECIMAL(12, 2) DEFAULT 0,
+  total DECIMAL(12, 2) DEFAULT 0,
+  FOREIGN KEY (supplier_invoice_id) REFERENCES supplier_invoices(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS gst_bills (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  invoice_number VARCHAR(80) NOT NULL,
+  customer_name VARCHAR(160) NOT NULL,
+  bill_date DATE DEFAULT (CURRENT_DATE),
+  submitted BOOLEAN DEFAULT false,
+  total_basic DECIMAL(12, 2) DEFAULT 0,
+  total_tax DECIMAL(12, 2) DEFAULT 0,
+  grand_total DECIMAL(12, 2) DEFAULT 0,
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS gst_bill_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  gst_bill_id INT,
+  description TEXT NOT NULL,
+  basic DECIMAL(12, 2) DEFAULT 0,
+  tax_type VARCHAR(20) DEFAULT 'sgst_cgst',
+  tax_rate DECIMAL(5, 2) DEFAULT 0,
+  sgst DECIMAL(12, 2) DEFAULT 0,
+  cgst DECIMAL(12, 2) DEFAULT 0,
+  igst DECIMAL(12, 2) DEFAULT 0,
+  tax DECIMAL(12, 2) DEFAULT 0,
+  total DECIMAL(12, 2) DEFAULT 0,
+  FOREIGN KEY (gst_bill_id) REFERENCES gst_bills(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS gst_records (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  record_date DATE DEFAULT (CURRENT_DATE),
+  description TEXT,
+  value DECIMAL(12, 2) DEFAULT 0,
+  gst DECIMAL(12, 2) DEFAULT 0,
+  total DECIMAL(12, 2) DEFAULT 0,
+  gst_type VARCHAR(20) NOT NULL,
+  sgst DECIMAL(12, 2) DEFAULT 0,
+  cgst DECIMAL(12, 2) DEFAULT 0,
+  igst DECIMAL(12, 2) DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(140) NOT NULL,
+  aadhaar_number VARCHAR(20),
+  bank_detail TEXT,
+  role VARCHAR(80),
+  full_time BOOLEAN DEFAULT false,
+  part_time BOOLEAN DEFAULT false,
+  salary DECIMAL(12, 2) DEFAULT 0,
+  joining_date DATE,
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS attendance (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  employee_id INT,
+  employee_name VARCHAR(140) NOT NULL,
+  attendance_date DATE NOT NULL,
+  in_time TIME,
+  out_time TIME,
+  total_work_duration VARCHAR(40),
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
+CREATE TABLE IF NOT EXISTS payroll (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  employee_id INT,
+  payroll_date DATE NOT NULL,
+  payroll_month VARCHAR(20),
+  payroll_year VARCHAR(10),
+  employee_name VARCHAR(140) NOT NULL,
+  salary DECIMAL(12, 2) DEFAULT 0,
+  advance_taken DECIMAL(12, 2) DEFAULT 0,
+  salary_to_be_paid DECIMAL(12, 2) DEFAULT 0,
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
+CREATE TABLE IF NOT EXISTS salary_advances (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  advance_date DATE NOT NULL,
+  employee_id INT,
+  employee_name VARCHAR(140) NOT NULL,
+  amount DECIMAL(12, 2) DEFAULT 0,
+  months INT DEFAULT 1,
+  deduction_per_month DECIMAL(12, 2) DEFAULT 0,
+  created_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
+CREATE TABLE IF NOT EXISTS app_users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(140) NOT NULL,
+  username VARCHAR(80) UNIQUE NOT NULL,
+  password VARCHAR(140) NOT NULL,
+  role VARCHAR(40) DEFAULT 'user',
+  permissions JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  movement_date DATE NOT NULL,
+  description TEXT NOT NULL,
+  stock_in DECIMAL(12, 2) DEFAULT 0,
+  stock_out DECIMAL(12, 2) DEFAULT 0,
+  created_by VARCHAR(140),
+  updated_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  activity_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  user_name VARCHAR(140) NOT NULL,
+  module VARCHAR(120) NOT NULL,
+  action VARCHAR(80) NOT NULL,
+  record_label TEXT,
+  details TEXT
+);
+
+CREATE TABLE IF NOT EXISTS gst_payments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  payment_date DATE NOT NULL,
+  transaction_id VARCHAR(140) NOT NULL,
+  amount_paid DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  created_by VARCHAR(140),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_state (
+  id INT PRIMARY KEY,
+  data JSON NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
