@@ -28,6 +28,14 @@ try {
     await connection.execute(statement);
   }
 
+  try {
+    await connection.execute("ALTER TABLE expenses ADD COLUMN mode_of_payment VARCHAR(20) DEFAULT 'cash'");
+  } catch (error) {
+    if (error?.code !== "ER_DUP_FIELDNAME") {
+      throw error;
+    }
+  }
+
   await connection.execute(`INSERT IGNORE INTO app_state (id, data) VALUES (1, ?)`, [seedData]);
   await connection.execute(
     `

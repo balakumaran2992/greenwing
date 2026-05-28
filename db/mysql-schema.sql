@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   tax_type VARCHAR(20) DEFAULT 'na',
   tax_rate DECIMAL(5, 2) DEFAULT 0,
   gst DECIMAL(12, 2) DEFAULT 0,
+  mode_of_payment VARCHAR(20) DEFAULT 'cash',
   expense_date DATE DEFAULT (CURRENT_DATE),
   created_by VARCHAR(140),
   updated_by VARCHAR(140),

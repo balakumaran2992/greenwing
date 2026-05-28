@@ -32,6 +32,7 @@ export type Expense = {
   category: "daily" | "other";
   taxType: "sgst_cgst" | "igst" | "na";
   gst: number;
+  modeOfPayment: "cash" | "bank";
   approvedBy?: string;
   expenseDate: string;
 };

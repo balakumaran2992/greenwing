@@ -33,6 +33,7 @@ CREATE TABLE expenses (
   tax_type VARCHAR(20) CHECK (tax_type IN ('sgst_cgst', 'igst', 'na')) DEFAULT 'na',
   tax_rate NUMERIC(5, 2) DEFAULT 0,
   gst NUMERIC(12, 2) DEFAULT 0,
+  mode_of_payment VARCHAR(20) CHECK (mode_of_payment IN ('cash', 'bank')) DEFAULT 'cash',
   expense_date DATE DEFAULT CURRENT_DATE
 );
 

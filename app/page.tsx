@@ -64,7 +64,7 @@ const pageTitle: Record<PageKey, string> = {
 };
 
 const blankForms = {
-  expenses: { description: "", value: 0, taxType: "na", taxRate: 0, gst: 0, expenseDate: "2026-05-22" },
+  expenses: { description: "", value: 0, taxType: "na", taxRate: 0, gst: 0, modeOfPayment: "cash", expenseDate: "2026-05-22" },
   employees: { name: "", aadhaarNumber: "", bankDetail: "", role: "", fullTime: true, partTime: false, salary: 0, joiningDate: "2026-05-22" },
   attendance: { employeeName: "", date: "2026-05-22", inTime: "09:30", outTime: "18:00", totalWorkDuration: "8h 30m" },
   payroll: { date: "2026-05-25", payrollMonth: "May", payrollYear: "2026", employeeName: "", salary: 0, advanceTaken: 0, salaryToBePaid: 0 }
@@ -175,7 +175,7 @@ export default function App() {
     const monthlySales = data.dailySales
       .filter((sale) => byMonthYear(sale.saleDate, filters.month, filters.year))
       .reduce((sum, sale) => sum + sale.cash + sale.upi + sale.card, 0);
-    return { totalSale, totalExpense, monthlySales, inputCredit: gst.input.total, outputGst: gst.output.total, gstPayable: Math.max(gst.output.total - gst.input.total, 0) };
+    return { totalSale, totalExpense, monthlySales, inputCredit: gst.input.total, outputGst: gst.output.total, gstPayable: Math.max(gst.output.total - gst.input.total, 0), ...openingBalances(data) };
   }, [data, filters, gst]);
 
   async function login(formData: FormData) {
@@ -363,6 +363,8 @@ function Dashboard({ totals, data }: { totals: Record<string, number>; data: App
         <SummaryCard title="Total Sale" value={currency.format(totals.totalSale)} icon={<Banknote />} />
         <SummaryCard title="Total Expense" value={currency.format(totals.totalExpense)} icon={<ClipboardList />} />
         <SummaryCard title="Monthly Sales" value={currency.format(totals.monthlySales)} icon={<CalendarDays />} />
+        <SummaryCard title="Cash Opening Balance" value={currency.format(totals.cashOpeningBalance)} icon={<WalletCards />} />
+        <SummaryCard title="Bank Opening Balance" value={currency.format(totals.bankOpeningBalance)} icon={<Banknote />} />
         <SummaryCard title="GST Payable" value={currency.format(totals.gstPayable)} icon={<FileBarChart />} />
         <SummaryCard title="Input Credit" value={currency.format(totals.inputCredit)} icon={<Download />} />
         <SummaryCard title="Output GST" value={currency.format(totals.outputGst)} icon={<FileText />} />
@@ -387,6 +389,7 @@ function DailySalePage({ data, setData, totals, isAdmin }: { data: AppData; setD
   const dayExpenses = data.expenses.filter((expense) => expense.category === "daily" && expense.expenseDate === form.saleDate);
   const expenseTotal = dayExpenses.reduce((sum, expense) => sum + expense.value, 0);
   const saleTotal = form.cash + form.upi + form.card;
+  const balances = openingBalances(data);
   const submittedForDate = data.dailySales.find((sale) => sale.saleDate === form.saleDate && sale.submitted);
   const locked = Boolean(submittedForDate) && adminEditId !== submittedForDate?.id;
 
@@ -417,7 +420,7 @@ function DailySalePage({ data, setData, totals, isAdmin }: { data: AppData; setD
     setAdminEditId(row.id);
   }
 
-  function updateSaleField(field: "saleDate" | "openingBalance" | "cash" | "upi" | "card" | "outputGst", value: string) {
+  function updateSaleField(field: "saleDate" | "cash" | "upi" | "card" | "outputGst", value: string) {
     if (field === "saleDate") {
       changeSaleDate(value);
     } else {
@@ -428,7 +431,7 @@ function DailySalePage({ data, setData, totals, isAdmin }: { data: AppData; setD
   function shareDailySale() {
     const message = [
       `Date: ${form.saleDate}`,
-      `Opening Balance: ${currency.format(form.openingBalance)}`,
+      `Cash Opening Balance: ${currency.format(totals.cashOpeningBalance)}`,
       `Cash: ${currency.format(form.cash)}`,
       `QR: ${currency.format(form.upi)}`,
       `Card: ${currency.format(form.card)}`,
@@ -458,7 +461,7 @@ function DailySalePage({ data, setData, totals, isAdmin }: { data: AppData; setD
             </div>
           </div>
           <div className="form-grid">
-            {(["saleDate", "openingBalance", "cash", "upi", "card", "outputGst"] as const).map((field) => (
+            {(["saleDate", "cash", "upi", "card", "outputGst"] as const).map((field) => (
               <label key={field}>{labelize(field)}
                 <input disabled={field !== "saleDate" && locked} type={field === "saleDate" ? "date" : "number"} value={String(form[field])} onInput={(event) => updateSaleField(field, event.currentTarget.value)} onChange={(event) => updateSaleField(field, event.currentTarget.value)} />
               </label>
@@ -467,10 +470,10 @@ function DailySalePage({ data, setData, totals, isAdmin }: { data: AppData; setD
           {locked ? <p className="status-note">This date is already submitted. Daily Sales and Expense Breakup are locked until Admin Edit is used.</p> : null}
           {adminEditId ? <p className="status-note">Admin edit mode is active. Submit again to save and lock this record.</p> : null}
         </form>
-        <ExpenseBreakup saleDate={form.saleDate} onAdd={addExpense} locked={locked} />
-        <DataTable rows={dayExpenses} columns={[["id", "S.No"], ["description", "Description"], ["value", "Amount"], ["gst", "GST"]]} />
+        <ExpenseBreakup saleDate={form.saleDate} onAdd={addExpense} locked={locked} balances={balances} />
+        <DataTable rows={dayExpenses} columns={[["id", "S.No"], ["description", "Description"], ["value", "Amount"], ["gst", "GST"], ["modeOfPayment", "Mode of Payment"]]} />
         <DateRangeFilter filters={dateRange} setFilters={setDateRange} />
-        <DataTable rows={uniqueDailySales(data.dailySales).filter((sale) => inDateRange(sale.saleDate, dateRange.from, dateRange.to)).map((sale) => ({ ...sale, total: sale.cash + sale.upi + sale.card, status: sale.submitted ? "Submitted" : "Draft" }))} columns={[["saleDate", "Date"], ["openingBalance", "Opening Balance"], ["cash", "Cash"], ["upi", "UPI"], ["card", "Card"], ["total", "Total"], ["expense", "Expense"], ["outputGst", "Output GST"], ["status", "Status"]]} actions={isAdmin ? (row) => <button className="ghost" onClick={() => adminEditSale(row as DailySale)}><Edit3 size={15} />Admin Edit</button> : undefined} />
+        <DataTable rows={uniqueDailySales(data.dailySales).filter((sale) => inDateRange(sale.saleDate, dateRange.from, dateRange.to)).map((sale) => ({ ...sale, total: sale.cash + sale.upi + sale.card, status: sale.submitted ? "Submitted" : "Draft" }))} columns={[["saleDate", "Date"], ["cash", "Cash"], ["upi", "UPI"], ["card", "Card"], ["total", "Total"], ["expense", "Expense"], ["outputGst", "Output GST"], ["status", "Status"]]} actions={isAdmin ? (row) => <button className="ghost" onClick={() => adminEditSale(row as DailySale)}><Edit3 size={15} />Admin Edit</button> : undefined} />
       </div>
       <aside className="side-panel">
         <h2>GST</h2>
@@ -481,22 +484,25 @@ function DailySalePage({ data, setData, totals, isAdmin }: { data: AppData; setD
   );
 }
 
-function ExpenseBreakup({ saleDate, onAdd, locked }: { saleDate: string; onAdd: (expense: Expense) => void; locked: boolean }) {
-  const [form, setForm] = useState({ description: "", value: 0, gst: 0 });
+function ExpenseBreakup({ saleDate, onAdd, locked, balances }: { saleDate: string; onAdd: (expense: Expense) => void; locked: boolean; balances: { cashOpeningBalance: number; bankOpeningBalance: number } }) {
+  const [form, setForm] = useState({ description: "", value: 0, gst: 0, modeOfPayment: "cash" as "cash" | "bank" });
+  const selectedBalance = form.modeOfPayment === "cash" ? balances.cashOpeningBalance : balances.bankOpeningBalance;
+  const projectedBalance = selectedBalance - form.value - form.gst;
   return (
     <form className="form-panel" onSubmit={(event) => {
       event.preventDefault();
       if (locked) return;
       onAdd({ id: Date.now(), expenseDate: saleDate, category: "daily", taxType: "sgst_cgst", ...form });
-      setForm({ description: "", value: 0, gst: 0 });
+      setForm({ description: "", value: 0, gst: 0, modeOfPayment: "cash" });
     }}>
       <div className="section-heading"><h2>Expense Breakup</h2><button className="primary" type="submit" disabled={locked}><Plus size={16} />Add Expense</button></div>
       <div className="form-grid">
         <label className="wide">Description<input disabled={locked} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
         <label>Value<input disabled={locked} type="number" value={form.value} onChange={(event) => setForm({ ...form, value: Number(event.target.value) })} /></label>
         <label>GST<input disabled={locked} type="number" value={form.gst} onChange={(event) => setForm({ ...form, gst: Number(event.target.value) })} /></label>
+        <label>Mode of Payment<select disabled={locked} required value={form.modeOfPayment} onChange={(event) => setForm({ ...form, modeOfPayment: event.target.value as "cash" | "bank" })}><option value="cash">Cash</option><option value="bank">Bank</option></select></label>
       </div>
-      <p className="status-note">{locked ? "Expense Breakup is locked for this submitted date." : `Showing expenses only for ${saleDate}.`}</p>
+      <p className="status-note">{locked ? "Expense Breakup is locked for this submitted date." : `Showing expenses only for ${saleDate}. ${form.modeOfPayment === "cash" ? "Cash" : "Bank"} balance after this expense: ${currency.format(projectedBalance)}.`}</p>
     </form>
   );
 }
@@ -623,7 +629,7 @@ function GstDetailsPage({ data, setData, filters, setFilters }: CrudProps & { fi
     event.preventDefault();
     if (!payment.transactionId || payment.amountPaid <= 0 || payment.amountPaid > remainingPayable) return;
     const gstPayment: GstPayment = { id: Date.now(), ...payment };
-    const expense: Expense = { id: Date.now() + 1, description: `GST Payment - ${payment.transactionId}`, value: payment.amountPaid, category: "other", taxType: "na", gst: 0, expenseDate: payment.date };
+    const expense: Expense = { id: Date.now() + 1, description: `GST Payment - ${payment.transactionId}`, value: payment.amountPaid, category: "other", taxType: "na", gst: 0, modeOfPayment: "bank", expenseDate: payment.date };
     const nextData = { ...data, gstPayments: [gstPayment, ...data.gstPayments], expenses: [expense, ...data.expenses] };
     setData(withActivity(data, nextData, "GST Details", "GST Payment Made", payment.transactionId, `Paid ${currency.format(payment.amountPaid)}`));
     setPayment({ date: "2026-05-23", transactionId: "", amountPaid: 0 });
@@ -654,7 +660,7 @@ function GstDetailsPage({ data, setData, filters, setFilters }: CrudProps & { fi
 }
 
 function ExpensesPage({ data, setData }: CrudProps) {
-  const [form, setForm] = useState({ expenseDate: "2026-05-22", description: "", value: 0, taxType: "na" as "sgst_cgst" | "igst" | "na", taxRate: 0 });
+  const [form, setForm] = useState({ expenseDate: "2026-05-22", description: "", value: 0, taxType: "na" as "sgst_cgst" | "igst" | "na", taxRate: 0, modeOfPayment: "cash" as "cash" | "bank" });
   const [breakup, setBreakup] = useState<{ date: string; category?: "daily" | "other" } | null>(null);
   const [filters, setFilters] = useState({ from: "", to: "", party: "" });
   const filteredExpenses = data.expenses
@@ -662,13 +668,16 @@ function ExpensesPage({ data, setData }: CrudProps) {
     .filter((expense) => !filters.party || expense.description.toLowerCase().includes(filters.party.toLowerCase()));
   const rows = expenseDetailRows(filteredExpenses);
   const taxValue = form.taxType === "na" ? 0 : Math.round(form.value * form.taxRate) / 100;
+  const balances = openingBalances(data);
+  const selectedBalance = form.modeOfPayment === "cash" ? balances.cashOpeningBalance : balances.bankOpeningBalance;
+  const projectedBalance = selectedBalance - form.value - taxValue;
   const breakupRows = breakup ? filteredExpenses.filter((expense) => expense.expenseDate === breakup.date && (!breakup.category || expense.category === breakup.category)) : [];
 
   function addOtherExpense(event: React.FormEvent) {
     event.preventDefault();
     const record: Expense = { id: Date.now(), category: "other", gst: taxValue, ...form };
     setData(withActivity(data, { ...data, expenses: [record, ...data.expenses] }, "Expenses", "Added", record.description, `Other expense ${currency.format(record.value)}`));
-    setForm({ expenseDate: "2026-05-22", description: "", value: 0, taxType: "na", taxRate: 0 });
+    setForm({ expenseDate: "2026-05-22", description: "", value: 0, taxType: "na", taxRate: 0, modeOfPayment: "cash" });
   }
 
   return (
@@ -679,6 +688,7 @@ function ExpensesPage({ data, setData }: CrudProps) {
           <label>Date<input type="date" value={form.expenseDate} onChange={(event) => setForm({ ...form, expenseDate: event.target.value })} /></label>
           <label className="wide">Description<input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
           <label>Other Expenses<input type="number" value={form.value} onChange={(event) => setForm({ ...form, value: Number(event.target.value) })} /></label>
+          <label>Mode of Payment<select required value={form.modeOfPayment} onChange={(event) => setForm({ ...form, modeOfPayment: event.target.value as "cash" | "bank" })}><option value="cash">Cash</option><option value="bank">Bank</option></select></label>
           <label>Tax Type<select value={form.taxType} onChange={(event) => {
             const taxType = event.target.value as "sgst_cgst" | "igst" | "na";
             setForm({ ...form, taxType, taxRate: taxType === "na" ? 0 : 5 });
@@ -686,7 +696,7 @@ function ExpensesPage({ data, setData }: CrudProps) {
           <label>Tax %<select value={form.taxRate} disabled={form.taxType === "na"} onChange={(event) => setForm({ ...form, taxRate: Number(event.target.value) })}>{expenseTaxOptions(form.taxType).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <label>Tax<input type="number" value={taxValue} readOnly /></label>
         </div>
-        <p className="status-note">Daily expenses are fetched from Daily Sale Expense Breakup. Use this section for salary payments and vendor payments.</p>
+        <p className="status-note">Daily expenses are fetched from Daily Sale Expense Breakup. Use this section for salary payments and vendor payments. {form.modeOfPayment === "cash" ? "Cash" : "Bank"} balance after this expense: {currency.format(projectedBalance)}.</p>
       </form>
       <div className="filter-bar record-search">
         <label>From Date<input type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} /></label>
@@ -710,7 +720,7 @@ function ExpensesPage({ data, setData }: CrudProps) {
             <h2>Expense Breakup - {breakup.date}</h2>
             <button className="ghost" onClick={() => setBreakup(null)}><X size={16} />Close</button>
           </div>
-          <DataTable rows={breakupRows.map((expense) => ({ ...expense, category: expense.category === "daily" ? "Daily Expense" : "Other Expense", total: expense.value + expense.gst }))} columns={[["expenseDate", "Date"], ["category", "Type"], ["description", "Description"], ["value", "Value"], ["taxType", "Tax Type"], ["gst", "Tax"], ["total", "Total"]]} />
+          <DataTable rows={breakupRows.map((expense) => ({ ...expense, category: expense.category === "daily" ? "Daily Expense" : "Other Expense", total: expense.value + expense.gst }))} columns={[["expenseDate", "Date"], ["category", "Type"], ["description", "Description"], ["value", "Value"], ["taxType", "Tax Type"], ["gst", "Tax"], ["modeOfPayment", "Mode of Payment"], ["total", "Total"]]} />
         </div>
       ) : null}
     </section>
@@ -836,7 +846,7 @@ function PayrollPage({ data, setData }: CrudProps) {
     event.preventDefault();
     if (!advanceForm.employeeName || advanceForm.amount <= 0 || advanceForm.months <= 0) return;
     const record: SalaryAdvance = { id: Date.now(), ...advanceForm, deductionPerMonth: Math.ceil(advanceForm.amount / advanceForm.months) };
-    const expense: Expense = { id: Date.now() + 1, description: `Salary Advance - ${record.employeeName}`, value: record.amount, category: "other", taxType: "na", gst: 0, expenseDate: record.date };
+    const expense: Expense = { id: Date.now() + 1, description: `Salary Advance - ${record.employeeName}`, value: record.amount, category: "other", taxType: "na", gst: 0, modeOfPayment: "bank", expenseDate: record.date };
     const nextData = { ...data, salaryAdvances: [record, ...data.salaryAdvances], expenses: [expense, ...data.expenses] };
     setData(withActivity(data, nextData, "Payroll", "Advance Added", record.employeeName, `${currency.format(record.amount)} over ${record.months} month(s)`));
     setAdvanceForm({ date: "2026-05-25", employeeName: "", amount: 0, months: 1 });
@@ -847,7 +857,7 @@ function PayrollPage({ data, setData }: CrudProps) {
     if (!form.employeeName || salary <= 0) return;
     const record: Payroll = { ...form, id: Date.now(), salary, advanceTaken: activeAdvanceDeduction, salaryToBePaid };
     const expenses: Expense[] = [
-      { id: Date.now() + 1, description: `Salary Payment - ${record.employeeName}`, value: record.salaryToBePaid, category: "other", taxType: "na", gst: 0, expenseDate: record.date }
+      { id: Date.now() + 1, description: `Salary Payment - ${record.employeeName}`, value: record.salaryToBePaid, category: "other", taxType: "na", gst: 0, modeOfPayment: "bank", expenseDate: record.date }
     ];
     const nextData = { ...data, payroll: [record, ...data.payroll], expenses: [...expenses, ...data.expenses] };
     setData(withActivity(data, nextData, "Payroll", "Salary Processed", record.employeeName, `${record.payrollMonth} ${record.payrollYear}, paid ${currency.format(record.salaryToBePaid)}${record.advanceTaken ? `, advance deduction ${currency.format(record.advanceTaken)}` : ""}`));
@@ -1347,6 +1357,7 @@ function normalizeData(input: AppData): AppData {
       ...expense,
       category: expense.category || "daily",
       taxType: expense.taxType || "na",
+      modeOfPayment: expense.modeOfPayment || "cash",
       approvedBy: expense.approvedBy || currentUser
     })),
     dailySales: uniqueDailySales(input.dailySales.map((sale) => ({ ...sale, openingBalance: sale.openingBalance || 0, outputGst: sale.outputGst || 0, submitted: sale.submitted ?? true }))),
@@ -1406,6 +1417,21 @@ function expenseDetailRows(expenses: Expense[]) {
     groups.set(expense.expenseDate, current);
   });
   return Array.from(groups.values()).sort((a, b) => b.expenseDate.localeCompare(a.expenseDate));
+}
+
+function openingBalances(data: AppData) {
+  const cashSales = data.dailySales.reduce((sum, sale) => sum + sale.cash, 0);
+  const bankSales = data.dailySales.reduce((sum, sale) => sum + sale.upi + sale.card, 0);
+  const cashExpenses = data.expenses
+    .filter((expense) => expense.modeOfPayment === "cash")
+    .reduce((sum, expense) => sum + expense.value + expense.gst, 0);
+  const bankExpenses = data.expenses
+    .filter((expense) => expense.modeOfPayment === "bank")
+    .reduce((sum, expense) => sum + expense.value + expense.gst, 0);
+  return {
+    cashOpeningBalance: cashSales - cashExpenses,
+    bankOpeningBalance: bankSales - bankExpenses
+  };
 }
 
 function stockInventoryRows(rows: StockMovement[]) {
@@ -1558,6 +1584,7 @@ function labelize(key: string) {
 const moneyFields = new Set(["openingBalance", "cash", "upi", "card", "total", "expense", "outputGst", "gst", "tax", "value", "basic", "salary", "hra", "pf", "bonus", "otherAllowance", "dailyExpense", "otherExpense", "inputCredit", "sgst", "cgst", "igst", "amountPaid", "remainingAfterPayment", "advanceTaken", "salaryToBePaid", "amount", "deductionPerMonth"]);
 
 function formatCell(value: unknown, key?: string) {
+  if (key === "modeOfPayment" && typeof value === "string") return labelize(value);
   if (typeof value === "number" && key && moneyFields.has(key)) return currency.format(value);
   if (typeof value === "number") return String(value);
   if (typeof value === "boolean") return value ? "Yes" : "No";
