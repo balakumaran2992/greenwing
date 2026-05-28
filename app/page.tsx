@@ -340,22 +340,18 @@ export default function App() {
 }
 
 function Dashboard({ totals, data }: { totals: Record<string, number>; data: AppData }) {
-  const [period, setPeriod] = useState<"quarter" | "sixMonths" | "twelveMonths">("quarter");
   const [analysis, setAnalysis] = useState({ month: "May", year: "2026" });
-  const filteredSales = filterByDashboardPeriod(data.dailySales.map((sale) => ({ date: sale.saleDate, value: sale.cash + sale.upi + sale.card })), period);
-  const filteredExpenses = filterByDashboardPeriod(data.expenses.map((expense) => ({ date: expense.expenseDate, value: expense.value + expense.gst })), period);
   const selectedRows = monthlyAnalysisRows(data, analysis.month, analysis.year);
   const selectedSales = selectedRows.reduce((sum, row) => sum + row.sales, 0);
   const selectedExpenses = selectedRows.reduce((sum, row) => sum + row.expenses, 0);
   const selectedProfit = selectedSales - selectedExpenses;
   const selectedMargin = selectedSales > 0 ? Math.round((selectedProfit / selectedSales) * 100) : 0;
-  const inflow = filteredSales.reduce((sum, row) => sum + row.value, 0);
-  const outflow = filteredExpenses.reduce((sum, row) => sum + row.value, 0);
+  const inflow = data.dailySales.reduce((sum, sale) => sum + sale.cash + sale.upi + sale.card, 0);
+  const outflow = data.expenses.reduce((sum, expense) => sum + expense.value + expense.gst, 0);
   const netCash = inflow - outflow;
   return (
     <section>
       <div className="filter-bar dashboard-controls">
-        <label>Dashboard Period<select value={period} onChange={(event) => setPeriod(event.target.value as "quarter" | "sixMonths" | "twelveMonths")}><option value="quarter">This Quarter</option><option value="sixMonths">Last 6 Months</option><option value="twelveMonths">Last 12 Months</option></select></label>
         <label>Analysis Month<select value={analysis.month} onChange={(event) => setAnalysis({ ...analysis, month: event.target.value })}>{months.map((month) => <option key={month}>{month}</option>)}</select></label>
         <label>Year<select value={analysis.year} onChange={(event) => setAnalysis({ ...analysis, year: event.target.value })}>{years.map((year) => <option key={year}>{year}</option>)}</select></label>
       </div>
